@@ -1,0 +1,122 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "fionawschan"
+date: "7/27/2020"
+output: html_document
+---
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## Data Loading and Processing
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r, include=FALSE}
+# Loading libraries
+library(e1071)
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(gbm)
+set.seed(12345)
+```
+
+```{r}
+# Download data from URL
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+
+# Create a partition with the training dataset
+inTrain <- createDataPartition(training$classe, p=0.7, list=FALSE)
+Trainset <- training[inTrain, ]
+Testset <- training[-inTrain, ]
+dim(Trainset)
+```
+
+```{r} 
+dim(Testset)
+```
+
+``` {r}
+# Remove variables with Nearly Zero Variance
+NZV <- nearZeroVar(Trainset)
+Trainset <- Trainset[, -NZV]
+Testset <- Testset[, -NZV]
+dim(Trainset)
+```
+
+```{r}
+dim(Testset)
+```
+
+
+```{r}
+AllNA <- sapply(Trainset, function(x) mean(is.na(x))) > 0.95
+Trainset <- Trainset[, AllNA==FALSE]
+Testset <- Testset[, AllNA==FALSE]
+dim(Trainset)
+```
+
+```{r}
+dim(Testset)
+```
+
+```{r} 
+# Remove identification only variable (Columns 1 to 5)
+Trainset <- Trainset[, -(1:5)]
+Testset <- Testset[, -(1:5)]
+dim(Trainset)
+```
+
+```{r}
+dim(Testset)
+```
+
+## Correlation Analysis
+
+Correlation among variables is analysed before proceeding to the modelling procedures.
+```{r}
+corMatrix <- cor(Trainset[, -54])
+corrplot(corMatrix, order = 'FPC', method='color', type ='lower', tl.cex = 0.8, tl.col = rgb(0,0,0))
+```
+
+## Prediction Model Building
+
+The Decision Tree method applied to model the regressions. 
+
+#### Decision Tree
+
+```{r}
+# Model fit
+set.seed(12345)
+modFitDecTree <- rpart(Trainset$classe ~ ., data=Trainset, method = "class")
+fancyRpartPlot(modFitDecTree)
+```
+
+```{r}
+# Prediction on Test dataset
+predictDecTree <- predict(modFitDecTree, newdata = Testset, type = "class")
+confMatDecTree <- confusionMatrix(predictDecTree, Testset$classe)
+confMatDecTree
+```
+
+```{r}
+# plot matrix results
+plot(confMatDecTree$table, col = confMatDecTree$byClass,
+     main = paste("Decision Tree - Accuracy = ",
+                  round(confMatDecTree$overall['Accuracy'],4)))
+```
+
+## Conclusion
+
+The accuracy of the Decision Tree modelling method is 0.7342. 
